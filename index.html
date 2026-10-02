@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AR Timer">
+<meta name="theme-color" content="#000000">
+<title>2026 Authorized Retail Strategy Session – Timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000000;
+    --text: #FFFFFF;
+    --muted: #8A8F98;
+    --blue: #00A8E0;
+    --yellow: #FFD400;
+    --red: #FF3B30;
+    --panel: #1A1C20;
+    --line: #2C2F35;
+    --timer-size: min(40vh, 36vw);
+    --timer-size-big: min(50vh, 44vw);
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Barlow", -apple-system, "Helvetica Neue", Arial, sans-serif;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .app {
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    padding: 2.2vh 3vw 2vh;
+  }
+
+  /* Header */
+  header { text-align: center; }
+  .title {
+    margin: 0;
+    font-weight: 500;
+    font-size: clamp(16px, 2.6vh, 30px);
+    letter-spacing: 0.02em;
+    color: var(--blue);
+  }
+  .clock {
+    margin-top: 0.6vh;
+    font-family: "Barlow Condensed", "Helvetica Neue", Arial Narrow, sans-serif;
+    font-weight: 500;
+    font-size: clamp(28px, 5.4vh, 64px);
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    line-height: 1;
+  }
+
+  /* Timer */
+  main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+  .timer {
+    font-family: "Barlow Condensed", "Helvetica Neue", Arial Narrow, sans-serif;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--timer-size);
+    line-height: 0.9;
+    color: var(--text);
+    transition: color 0.4s ease, font-size 0.6s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .timer.warn { color: var(--yellow); }
+  .timer.big { font-size: var(--timer-size-big); }
+  .timer.danger { color: var(--red); }
+  .timer.over { color: var(--red); animation: pulse 1s steps(2, start) infinite; }
+  .timer.paused { opacity: 0.45; }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+
+  .status {
+    min-height: 3vh;
+    font-size: clamp(14px, 2.2vh, 24px);
+    color: var(--muted);
+    margin-top: 0.6vh;
+  }
+  .lineup {
+    display: flex;
+    gap: 4vw;
+    justify-content: center;
+    align-items: baseline;
+    margin-top: 0.8vh;
+    max-width: 94vw;
+  }
+  .lineup .now { font-size: clamp(18px, 3.4vh, 38px); font-weight: 600; color: var(--text); }
+  .lineup .next { font-size: clamp(15px, 2.6vh, 28px); color: var(--muted); }
+  .lineup span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45vw; }
+  .lineup .lbl { font-weight: 400; color: var(--muted); }
+
+  /* One-minute flash */
+  .flash {
+    position: fixed; inset: 0;
+    background: var(--red);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .flash.go { animation: flash 1.8s ease-out 1; }
+  @keyframes flash {
+    0%, 33%, 66% { opacity: 0.85; }
+    16%, 50%, 100% { opacity: 0; }
+  }
+
+  /* Controls */
+  footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.4vh;
+    transition: opacity 0.6s ease;
+  }
+  footer.dim { opacity: 0.12; }
+  .row { display: flex; gap: 1vw; flex-wrap: wrap; justify-content: center; }
+
+  button {
+    font: inherit;
+    font-weight: 500;
+    font-size: clamp(15px, 2.2vh, 24px);
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 1.1vh 2.2vw;
+    min-height: 44px;
+    cursor: pointer;
+  }
+  button:active { transform: scale(0.97); }
+  button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+  button:disabled { opacity: 0.35; cursor: default; }
+  .preset.active { border-color: var(--blue); color: var(--blue); }
+  .primary { background: var(--blue); border-color: var(--blue); color: #000; font-weight: 600; min-width: 11vw; }
+  .ghost { background: transparent; }
+
+  /* Sheets */
+  .sheet {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 10;
+  }
+  .sheet.open { display: flex; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 3.4vh 3vw;
+    width: min(560px, 90vw);
+    text-align: center;
+  }
+  .card h2 { margin: 0 0 2.4vh; font-weight: 500; font-size: clamp(20px, 3vh, 30px); }
+  .fields { display: flex; justify-content: center; align-items: flex-end; gap: 1.2vw; margin-bottom: 3vh; }
+  .field label { display: block; color: var(--muted); font-size: 16px; margin-bottom: 8px; }
+  .field input {
+    width: 150px;
+    font-family: "Barlow Condensed", "Helvetica Neue", sans-serif;
+    font-size: 64px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text);
+    background: #000;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 6px 0;
+  }
+  input { -webkit-user-select: text; user-select: text; }
+  input:focus { outline: 3px solid var(--blue); outline-offset: 1px; }
+  .colon { font-family: "Barlow Condensed", sans-serif; font-size: 64px; padding-bottom: 10px; color: var(--muted); }
+  .card .row { gap: 12px; }
+
+  /* Agenda editor */
+  .card.wide { width: min(900px, 94vw); text-align: left; }
+  .agenda-head, .agenda-row {
+    display: grid;
+    grid-template-columns: 36px 1fr 110px 132px;
+    gap: 10px;
+    align-items: center;
+  }
+  .agenda-head { color: var(--muted); font-size: 15px; padding: 0 4px 8px; border-bottom: 1px solid var(--line); }
+  .agenda-list { max-height: 52vh; overflow-y: auto; padding: 6px 4px; -webkit-overflow-scrolling: touch; }
+  .agenda-row { padding: 6px 0; }
+  .agenda-row.current .num { color: var(--blue); font-weight: 600; }
+  .num { color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+  .agenda-row input {
+    font: inherit;
+    font-size: 19px;
+    color: var(--text);
+    background: #000;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    width: 100%;
+  }
+  .agenda-row input[type=number] { text-align: center; }
+  .row-actions { display: flex; gap: 6px; }
+  .icon {
+    padding: 0; width: 40px; min-height: 40px; height: 40px;
+    font-size: 18px; border-radius: 10px;
+  }
+  .empty { color: var(--muted); padding: 24px 4px; text-align: center; }
+  .agenda-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 2vh; gap: 12px; flex-wrap: wrap; }
+  .total { color: var(--muted); font-size: 17px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .timer, footer { transition: none; }
+    .timer.over { animation: none; }
+    .flash.go { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1 class="title">2026 Authorized Retail Strategy Session</h1>
+    <div class="clock" id="clock">--:--</div>
+  </header>
+
+  <main>
+    <div class="timer" id="timer" role="timer" aria-live="off" title="Tap to start or pause">40:00</div>
+    <div class="status" id="status"></div>
+    <div class="lineup" id="lineup"></div>
+  </main>
+
+  <footer id="controls">
+    <div class="row" id="presets">
+      <button class="preset" data-min="5">5 min</button>
+      <button class="preset" data-min="10">10 min</button>
+      <button class="preset" data-min="15">15 min</button>
+      <button class="preset" data-min="20">20 min</button>
+      <button class="preset" data-min="30">30 min</button>
+      <button class="preset" data-min="40">40 min</button>
+      <button class="preset" data-min="60">1 hour</button>
+    </div>
+    <div class="row">
+      <button class="ghost" id="agendaBtn">Agenda</button>
+      <button class="ghost" id="setBtn">Set Time</button>
+      <button class="ghost" id="prevBtn">Previous</button>
+      <button class="primary" id="startBtn">Start</button>
+      <button class="ghost" id="nextBtn">Next</button>
+      <button class="ghost" id="resetBtn">Reset</button>
+    </div>
+  </footer>
+</div>
+
+<div class="flash" id="flash"></div>
+
+<!-- Set Time -->
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="card">
+    <h2 id="sheetTitle">Set presentation time</h2>
+    <div class="fields">
+      <div class="field">
+        <label for="minIn">Minutes</label>
+        <input id="minIn" type="number" inputmode="numeric" min="0" max="599" value="40">
+      </div>
+      <div class="colon">:</div>
+      <div class="field">
+        <label for="secIn">Seconds</label>
+        <input id="secIn" type="number" inputmode="numeric" min="0" max="59" value="0">
+      </div>
+    </div>
+    <div class="row">
+      <button class="ghost" id="cancelBtn">Cancel</button>
+      <button class="primary" id="applyBtn">Set Time</button>
+    </div>
+  </div>
+</div>
+
+<!-- Agenda editor -->
+<div class="sheet" id="agendaSheet" role="dialog" aria-modal="true" aria-labelledby="agendaTitle">
+  <div class="card wide">
+    <h2 id="agendaTitle">Agenda</h2>
+    <div class="agenda-head">
+      <span class="num">#</span><span>Presenter or topic</span><span style="text-align:center">Minutes</span><span></span>
+    </div>
+    <div class="agenda-list" id="agendaList"></div>
+    <div class="agenda-foot">
+      <div class="row">
+        <button class="ghost" id="addItemBtn">Add item</button>
+        <button class="ghost" id="clearBtn">Clear all</button>
+      </div>
+      <span class="total" id="agendaTotal"></span>
+      <div class="row">
+        <button class="ghost" id="agendaCancel">Cancel</button>
+        <button class="primary" id="agendaSave">Save agenda</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const WARN = 10 * 60, BIG = 5 * 60, DANGER = 3 * 60, FLASH_AT = 60;
+  const KEY = 'ar-strategy-timer-v1';
+
+  const $ = id => document.getElementById(id);
+  const timerEl = $('timer'), statusEl = $('status'), clockEl = $('clock'), lineupEl = $('lineup');
+  const startBtn = $('startBtn'), controls = $('controls');
+  const sheet = $('sheet'), agendaSheet = $('agendaSheet');
+
+  // ---- State ----
+  let state = {
+    duration: 40 * 60,      // seconds
+    remainingMs: 40 * 60 * 1000,
+    endAt: null,            // absolute timestamp while running
+    running: false,
+    agenda: [],             // [{name, min}]
+    index: 0
+  };
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+  function load() {
+    try {
+      const s = JSON.parse(localStorage.getItem(KEY));
+      if (s && typeof s.duration === 'number') state = Object.assign(state, s);
+    } catch (e) {}
+  }
+
+  let wakeLock = null;
+  let prevSec = null;
+
+  const fmt = totalSec => {
+    const s = Math.abs(totalSec);
+    const m = Math.floor(s / 60), r = s % 60;
+    return (totalSec < 0 ? '+' : '') + m + ':' + String(r).padStart(2, '0');
+  };
+  const escapeHtml = str => String(str).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  const currentMs = () => state.running ? state.endAt - Date.now() : state.remainingMs;
+
+  function render() {
+    const ms = currentMs();
+    const sec = ms >= 0 ? Math.ceil(ms / 1000) : -Math.floor(-ms / 1000);
+    timerEl.textContent = fmt(sec);
+
+    const started = state.running || state.remainingMs !== state.duration * 1000;
+    timerEl.classList.toggle('warn',   started && sec <= WARN && sec > DANGER);
+    timerEl.classList.toggle('big',    started && sec <= BIG);
+    timerEl.classList.toggle('danger', started && sec <= DANGER && sec > 0);
+    timerEl.classList.toggle('over',   started && sec <= 0 && ms < 0);
+    timerEl.classList.toggle('paused', !state.running && started);
+
+    // One-minute flash: only when crossing the mark while running
+    if (state.running && prevSec !== null && prevSec > FLASH_AT && sec <= FLASH_AT && state.duration > FLASH_AT) {
+      const f = $('flash');
+      f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+    }
+    prevSec = sec;
+
+    let status = '';
+    if (state.running && ms < 0) status = "Time's up";
+    else if (!state.running && started) status = 'Paused';
+    else if (!state.running) status = 'Tap Start when the presenter begins';
+    if (statusEl.textContent !== status) statusEl.textContent = status;
+  }
+
+  function renderLineup() {
+    const a = state.agenda;
+    if (!a.length) {
+      lineupEl.innerHTML = '';
+      $('prevBtn').disabled = $('nextBtn').disabled = true;
+      return;
+    }
+    const cur = a[state.index], nxt = a[state.index + 1];
+    lineupEl.innerHTML =
+      `<span class="now"><span class="lbl">Now (${state.index + 1}/${a.length}):</span> ${escapeHtml(cur.name || 'Untitled')}</span>` +
+      `<span class="next"><span class="lbl">Up next:</span> ${nxt ? escapeHtml(nxt.name || 'Untitled') + ' (' + nxt.min + ' min)' : 'End of agenda'}</span>`;
+    $('prevBtn').disabled = state.index <= 0;
+    $('nextBtn').disabled = state.index >= a.length - 1;
+  }
+
+  function markPresets() {
+    document.querySelectorAll('.preset').forEach(b =>
+      b.classList.toggle('active', Number(b.dataset.min) * 60 === state.duration));
+  }
+  function updateStartLabel() {
+    const started = state.remainingMs !== state.duration * 1000;
+    startBtn.textContent = state.running ? 'Pause' : (started ? 'Resume' : 'Start');
+  }
+
+  function tickClock() {
+    clockEl.textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+
+  async function keepAwake(on) {
+    try {
+      if (on && 'wakeLock' in navigator && !wakeLock) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } else if (!on && wakeLock) {
+        await wakeLock.release(); wakeLock = null;
+      }
+    } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') keepAwake(true);
+    else save();
+  });
+
+  // ---- Timer actions ----
+  function start() {
+    state.endAt = Date.now() + state.remainingMs;
+    state.running = true;
+    keepAwake(true);
+    updateStartLabel(); save(); render();
+  }
+  function pause() {
+    state.remainingMs = state.endAt - Date.now();
+    state.running = false;
+    updateStartLabel(); save(); render();
+  }
+  const toggle = () => state.running ? pause() : start();
+
+  function setDuration(sec) {
+    state.duration = Math.max(1, Math.round(sec));
+    state.remainingMs = state.duration * 1000;
+    state.running = false; state.endAt = null;
+    prevSec = null;
+    markPresets(); updateStartLabel(); save(); render();
+  }
+
+  function goTo(i) {
+    if (!state.agenda.length) return;
+    state.index = Math.max(0, Math.min(state.agenda.length - 1, i));
+    setDuration(state.agenda[state.index].min * 60);
+    renderLineup(); save();
+  }
+
+  document.querySelectorAll('.preset').forEach(b =>
+    b.addEventListener('click', () => setDuration(Number(b.dataset.min) * 60)));
+  startBtn.addEventListener('click', toggle);
+  timerEl.addEventListener('click', toggle);
+  $('resetBtn').addEventListener('click', () => setDuration(state.duration));
+  $('nextBtn').addEventListener('click', () => goTo(state.index + 1));
+  $('prevBtn').addEventListener('click', () => goTo(state.index - 1));
+
+  // ---- Set Time sheet ----
+  const minIn = $('minIn'), secIn = $('secIn');
+  $('setBtn').addEventListener('click', () => {
+    minIn.value = Math.floor(state.duration / 60);
+    secIn.value = state.duration % 60;
+    sheet.classList.add('open');
+    setTimeout(() => { minIn.focus(); minIn.select(); }, 50);
+  });
+  const closeSheet = () => sheet.classList.remove('open');
+  $('cancelBtn').addEventListener('click', closeSheet);
+  sheet.addEventListener('click', e => { if (e.target === sheet) closeSheet(); });
+  function applyTime() {
+    const m = Math.min(599, Math.max(0, parseInt(minIn.value, 10) || 0));
+    const s = Math.min(59, Math.max(0, parseInt(secIn.value, 10) || 0));
+    if (m * 60 + s === 0) { minIn.focus(); return; }
+    setDuration(m * 60 + s);
+    closeSheet();
+  }
+  $('applyBtn').addEventListener('click', applyTime);
+  [minIn, secIn].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') applyTime(); }));
+
+  // ---- Agenda editor ----
+  const listEl = $('agendaList');
+  let draft = [];
+
+  function readDraft() {
+    draft = [...listEl.querySelectorAll('.agenda-row')].map(r => ({
+      name: r.querySelector('.nm').value.trim(),
+      min: Math.max(1, Math.min(599, parseInt(r.querySelector('.mn').value, 10) || 1))
+    }));
+  }
+  function renderDraft(focusLast) {
+    if (!draft.length) {
+      listEl.innerHTML = '<div class="empty">No agenda yet. Add an item for each presentation.</div>';
+    } else {
+      listEl.innerHTML = draft.map((it, i) => `
+        <div class="agenda-row${i === state.index && state.agenda.length ? ' current' : ''}" data-i="${i}">
+          <span class="num">${i + 1}</span>
+          <input class="nm" type="text" placeholder="Presenter or topic" value="${escapeHtml(it.name)}" autocomplete="off">
+          <input class="mn" type="number" inputmode="numeric" min="1" max="599" value="${it.min}">
+          <div class="row-actions">
+            <button class="icon ghost" data-act="up" aria-label="Move up" ${i === 0 ? 'disabled' : ''}>↑</button>
+            <button class="icon ghost" data-act="down" aria-label="Move down" ${i === draft.length - 1 ? 'disabled' : ''}>↓</button>
+            <button class="icon ghost" data-act="del" aria-label="Remove item">✕</button>
+          </div>
+        </div>`).join('');
+    }
+    updateTotal();
+    if (focusLast) {
+      const inputs = listEl.querySelectorAll('.nm');
+      const last = inputs[inputs.length - 1];
+      if (last) { last.focus(); last.scrollIntoView({ block: 'nearest' }); }
+    }
+  }
+  function updateTotal() {
+    const mins = [...listEl.querySelectorAll('.mn')].reduce((t, el) => t + (parseInt(el.value, 10) || 0), 0);
+    const h = Math.floor(mins / 60), m = mins % 60;
+    $('agendaTotal').textContent = draft.length
+      ? `${draft.length} items, ${h ? h + ' hr ' : ''}${m} min total` : '';
+  }
+
+  listEl.addEventListener('input', updateTotal);
+  listEl.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    readDraft();
+    const i = Number(btn.closest('.agenda-row').dataset.i);
+    const act = btn.dataset.act;
+    if (act === 'del') draft.splice(i, 1);
+    if (act === 'up' && i > 0) [draft[i - 1], draft[i]] = [draft[i], draft[i - 1]];
+    if (act === 'down' && i < draft.length - 1) [draft[i + 1], draft[i]] = [draft[i], draft[i + 1]];
+    renderDraft(false);
+  });
+
+  $('agendaBtn').addEventListener('click', () => {
+    draft = state.agenda.map(x => ({ ...x }));
+    if (!draft.length) draft.push({ name: '', min: 40 });
+    renderDraft(false);
+    agendaSheet.classList.add('open');
+  });
+  $('addItemBtn').addEventListener('click', () => {
+    readDraft();
+    draft.push({ name: '', min: draft.length ? draft[draft.length - 1].min : 40 });
+    renderDraft(true);
+  });
+  $('clearBtn').addEventListener('click', () => {
+    if (!confirm('Remove every agenda item?')) return;
+    draft = []; renderDraft(false);
+  });
+  const closeAgenda = () => agendaSheet.classList.remove('open');
+  $('agendaCancel').addEventListener('click', closeAgenda);
+  $('agendaSave').addEventListener('click', () => {
+    readDraft();
+    const items = draft.filter(x => x.name || x.min);
+    const hadAgenda = state.agenda.length > 0;
+    state.agenda = items;
+    closeAgenda();
+    if (!items.length) { state.index = 0; renderLineup(); save(); return; }
+    if (state.index >= items.length) state.index = items.length - 1;
+    // Load the current item unless a timer is mid-run
+    const started = state.running || state.remainingMs !== state.duration * 1000;
+    if (!hadAgenda || !started) goTo(state.index);
+    else { renderLineup(); save(); }
+  });
+
+  // ---- Dim controls while running ----
+  let idleTimer;
+  function wake() {
+    controls.classList.remove('dim');
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => { if (state.running) controls.classList.add('dim'); }, 6000);
+  }
+  ['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, wake));
+
+  // Keyboard shortcuts (attached keyboard): Space start/pause, R reset, arrows prev/next
+  document.addEventListener('keydown', e => {
+    if (sheet.classList.contains('open') || agendaSheet.classList.contains('open')) {
+      if (e.key === 'Escape') { closeSheet(); closeAgenda(); }
+      return;
+    }
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+    else if (e.key === 'r' || e.key === 'R') setDuration(state.duration);
+    else if (e.key === 'ArrowRight') goTo(state.index + 1);
+    else if (e.key === 'ArrowLeft') goTo(state.index - 1);
+  });
+
+  // ---- Boot ----
+  load();
+  markPresets(); updateStartLabel(); renderLineup();
+  if (state.running) keepAwake(true);
+  tickClock();
+  setInterval(tickClock, 1000);
+  setInterval(() => { if (state.running) save(); }, 5000);
+  (function loop() { render(); requestAnimationFrame(loop); })();
+  wake();
+})();
+</script>
+</body>
+</html>
